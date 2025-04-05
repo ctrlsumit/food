@@ -1,0 +1,345 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Scanner AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <h1 class="text-4xl font-bold text-center mb-8 text-green-600">
+            🍔 Apna Food AI Scanner 📸
+        </h1>
+
+        <!-- Upload Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-4 cursor-pointer"
+                     id="uploadArea">
+                    <input type="file" id="fileInput" class="hidden" accept="image/*">
+                    <label for="fileInput" class="cursor-pointer">
+                        <div id="previewContainer">
+                            <span class="text-gray-500" id="uploadText">Khaane ki photo select kar</span>
+                        </div>
+                    </label>
+                </div>
+                <button type="submit" 
+                        id="scanButton"
+                        class="w-full bg-green-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:bg-gray-400">
+                    Scan Karo!
+                </button>
+            </form>
+            <div id="errorMessage" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden bg-white rounded-lg shadow-md">
+            <!-- Tabs -->
+            <div class="flex bg-gray-100 rounded-t-lg" id="tabs">
+                <button class="tab-button flex-1 py-3 font-medium" data-tab="identify">Identified Items</button>
+                <button class="tab-button flex-1 py-3 font-medium" data-tab="nutrition">Nutrition Info</button>
+                <button class="tab-button flex-1 py-3 font-medium" data-tab="suggestions">Meal Suggestions</button>
+                <button class="tab-button flex-1 py-3 font-medium" data-tab="feedback">Feedback</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6" id="tabContent">
+                <!-- Identify Tab -->
+                <div class="tab-pane hidden" data-tab="identify">
+                    <h3 class="text-xl font-semibold mb-4">Ye mila tere khane mein:</h3>
+                    <ul id="identifiedItems" class="space-y-2"></ul>
+                </div>
+
+                <!-- Nutrition Tab -->
+                <div class="tab-pane hidden" data-tab="nutrition">
+                    <h3 class="text-xl font-semibold mb-4">Nutrition Information:</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" id="nutritionCards"></div>
+                    <div class="bg-green-100 p-3 rounded text-green-700">
+                        <strong>Health Tip:</strong> Balance protein, carbs, and vegetables for a nutritious meal.
+                    </div>
+                </div>
+
+                <!-- Suggestions Tab -->
+                <div class="tab-pane hidden" data-tab="suggestions">
+                    <h3 class="text-xl font-semibold mb-4">Try These Healthy Recipes:</h3>
+                    <div class="grid md:grid-cols-3 gap-4" id="suggestionCards"></div>
+                    <div class="bg-orange-100 p-3 rounded text-orange-700 mt-4">
+                        <strong>Tip:</strong> These meals are designed to reduce waste and maximize nutrition!
+                    </div>
+                </div>
+
+                <!-- Feedback Tab -->
+                <div class="tab-pane hidden" data-tab="feedback">
+                    <h3 class="text-xl font-semibold mb-4">Apna Feedback Do:</h3>
+                    <div id="feedbackForm" class="bg-gray-50 p-4 rounded-lg">
+                        <div class="mb-4">
+                            <label class="block mb-2">Kitna satisfied hai tu? (1-10)</label>
+                            <div class="flex items-center">
+                                <input type="range" min="1" max="10" value="5" id="satisfactionRange" class="w-full">
+                                <span id="satisfactionValue" class="ml-2">5/10</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2">Wastage kitna reduce hua? (0-100%)</label>
+                            <div class="flex items-center">
+                                <input type="range" min="0" max="100" value="0" id="wastageRange" class="w-full">
+                                <span id="wastageValue" class="ml-2">0%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="likedSuggestions" class="mr-2">
+                                Meal suggestions pasand aaye?
+                            </label>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block mb-2">Comments:</label>
+                            <textarea id="commentsInput" rows="3" class="w-full border rounded p-2" 
+                                      placeholder="Apna opinion de bhai..."></textarea>
+                        </div>
+                        
+                        <button id="submitFeedback" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Submit Karo
+                        </button>
+                    </div>
+                    
+                    <div id="feedbackSuccess" class="hidden bg-green-100 p-4 rounded-lg mt-4 text-center">
+                        <h4 class="font-bold text-green-700">Feedback submit ho gaya! Dhanyawad 🙏</h4>
+                        <p>Tera feedback se ham apna system improve karenge.</p>
+                    </div>
+                    
+                    <div id="feedbackStats" class="hidden mt-6 p-4 border rounded-lg">
+                        <h4 class="font-bold mb-2">Feedback Statistics:</h4>
+                        <p>Total Feedback: <span id="totalFeedback">0</span></p>
+                        <p>Average Satisfaction: <span id="avgSatisfaction">0</span>/10</p>
+                        <p>Average Wastage Reduced: <span id="avgWastage">0</span>%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elements
+            const uploadForm = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('fileInput');
+            const previewContainer = document.getElementById('previewContainer');
+            const uploadText = document.getElementById('uploadText');
+            const scanButton = document.getElementById('scanButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultsSection = document.getElementById('resultsSection');
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            
+            // Feedback elements
+            const satisfactionRange = document.getElementById('satisfactionRange');
+            const satisfactionValue = document.getElementById('satisfactionValue');
+            const wastageRange = document.getElementById('wastageRange');
+            const wastageValue = document.getElementById('wastageValue');
+            const likedSuggestions = document.getElementById('likedSuggestions');
+            const commentsInput = document.getElementById('commentsInput');
+            const submitFeedback = document.getElementById('submitFeedback');
+            const feedbackSuccess = document.getElementById('feedbackSuccess');
+            const feedbackStats = document.getElementById('feedbackStats');
+            
+            // Store analyzed results
+            let analyzedData = null;
+            
+            // Show tab
+            const showTab = (tabName) => {
+                tabs.forEach(tab => {
+                    if (tab.dataset.tab === tabName) {
+                        tab.classList.add('bg-green-500', 'text-white');
+                    } else {
+                        tab.classList.remove('bg-green-500', 'text-white');
+                    }
+                });
+                
+                tabPanes.forEach(pane => {
+                    if (pane.dataset.tab === tabName) {
+                        pane.classList.remove('hidden');
+                    } else {
+                        pane.classList.add('hidden');
+                    }
+                });
+            };
+            
+            // Initialize tab events
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    showTab(tab.dataset.tab);
+                });
+            });
+            
+            // File preview
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewContainer.innerHTML = `
+                            <img src="${e.target.result}" class="max-h-48 mx-auto rounded" alt="Preview">
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    previewContainer.innerHTML = `<span class="text-gray-500">${uploadText.textContent}</span>`;
+                }
+            });
+            
+            // Form submission
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                if (!fileInput.files[0]) {
+                    errorMessage.textContent = "Arrey bhai, pehle image select kar!";
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('image', fileInput.files[0]);
+                
+                try {
+                    scanButton.disabled = true;
+                    scanButton.textContent = 'Rukja bhai, scanning...';
+                    errorMessage.classList.add('hidden');
+                    
+                    const response = await axios.post('/api/analyze/', formData);
+                    analyzedData = response.data;
+                    
+                    // Show results
+                    populateResults(analyzedData);
+                    resultsSection.classList.remove('hidden');
+                    showTab('identify');
+                    
+                    // Try to get feedback stats
+                    fetchFeedbackStats();
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    errorMessage.textContent = error.response?.data?.error || 'Kuch toh gadbad hai! Backend check kar.';
+                    errorMessage.classList.remove('hidden');
+                } finally {
+                    scanButton.disabled = false;
+                    scanButton.textContent = 'Scan Karo!';
+                }
+            });
+            
+            // Populate results
+            const populateResults = (data) => {
+                // Identify tab
+                const identifiedItems = document.getElementById('identifiedItems');
+                identifiedItems.innerHTML = '';
+                data.foods.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'bg-gray-50 p-3 rounded shadow-sm';
+                    li.textContent = item;
+                    identifiedItems.appendChild(li);
+                });
+                
+                // Nutrition tab
+                const nutritionCards = document.getElementById('nutritionCards');
+                nutritionCards.innerHTML = '';
+                
+                const nutritionItems = [
+                    { name: 'Calories', value: data.nutrition.calories.value, unit: data.nutrition.calories.unit },
+                    { name: 'Protein', value: data.nutrition.protein.value, unit: data.nutrition.protein.unit },
+                    { name: 'Fat', value: data.nutrition.fat.value, unit: data.nutrition.fat.unit },
+                    { name: 'Carbs', value: data.nutrition.carbs.value, unit: data.nutrition.carbs.unit }
+                ];
+                
+                nutritionItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-lg shadow text-center';
+                    card.innerHTML = `
+                        <h4 class="font-bold text-green-600">${item.name}</h4>
+                        <p class="text-2xl">${item.value} ${item.unit}</p>
+                    `;
+                    nutritionCards.appendChild(card);
+                });
+                
+                // Suggestions tab
+                const suggestionCards = document.getElementById('suggestionCards');
+                suggestionCards.innerHTML = '';
+                
+                data.suggestions.forEach(suggestion => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-lg shadow overflow-hidden';
+                    card.innerHTML = `
+                        <img src="${suggestion.image}" class="w-full h-40 object-cover" alt="${suggestion.title}">
+                        <div class="p-4">
+                            <h4 class="font-bold mb-2">${suggestion.title}</h4>
+                            <button onclick="window.open('https://spoonacular.com/recipes/${suggestion.title.toLowerCase().replace(/ /g, '-')}-${suggestion.id}')" 
+                                    class="bg-orange-500 text-white py-1 px-3 rounded hover:bg-orange-600 text-sm">
+                                Recipe Dekho
+                            </button>
+                        </div>
+                    `;
+                    suggestionCards.appendChild(card);
+                });
+            };
+            
+            // Range inputs handling
+            satisfactionRange.addEventListener('input', () => {
+                satisfactionValue.textContent = `${satisfactionRange.value}/10`;
+            });
+            
+            wastageRange.addEventListener('input', () => {
+                wastageValue.textContent = `${wastageRange.value}%`;
+            });
+            
+            // Submit feedback
+            submitFeedback.addEventListener('click', async () => {
+                try {
+                    const feedbackData = {
+                        satisfaction: parseInt(satisfactionRange.value),
+                        wastage_reduced: parseInt(wastageRange.value),
+                        liked_suggestions: likedSuggestions.checked,
+                        comments: commentsInput.value,
+                        food_items: analyzedData?.foods || [],
+                        suggestions: analyzedData?.suggestions?.map(s => s.title) || []
+                    };
+                    
+                    await axios.post('/api/feedback/', feedbackData);
+                    document.getElementById('feedbackForm').classList.add('hidden');
+                    feedbackSuccess.classList.remove('hidden');
+                    
+                    // Refresh stats
+                    fetchFeedbackStats();
+                    
+                } catch (error) {
+                    console.error('Feedback error:', error);
+                    errorMessage.textContent = "Feedback submit karne mein problem hai";
+                    errorMessage.classList.remove('hidden');
+                }
+            });
+            
+            // Fetch feedback stats
+            const fetchFeedbackStats = async () => {
+                try {
+                    const response = await axios.get('/api/feedback/stats/');
+                    const stats = response.data;
+                    
+                    if (stats.total_feedback) {
+                        document.getElementById('totalFeedback').textContent = stats.total_feedback;
+                        document.getElementById('avgSatisfaction').textContent = stats.avg_satisfaction;
+                        document.getElementById('avgWastage').textContent = stats.avg_wastage_reduced;
+                        feedbackStats.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Stats error:', error);
+                }
+            };
+        });
+    </script>
+</body>
+</html>
